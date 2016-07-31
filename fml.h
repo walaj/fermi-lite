@@ -8,7 +8,7 @@
 typedef struct {
 	int32_t l_seq;
 	char *seq, *qual; // NULL-terminated strings; length expected to match $l_seq
-} bseq1_t;
+} fseq1_t;
 
 #define MAG_F_AGGRESSIVE 0x20 // pop variant bubbles (not default)
 #define MAG_F_NO_SIMPL   0x80 // skip bubble simplification (default)
