@@ -60,7 +60,7 @@ extern "C" {
  *
  * @return array of sequences
  */
-bseq1_t *bseq_read(const char *fn, int *n);
+fseq1_t *fseq_read(const char *fn, int *n);
 
 /**
  * Initialize default parameters
@@ -79,7 +79,7 @@ void fml_opt_init(fml_opt_t *opt);
  *
  * @return array of unitigs
  */
-fml_utg_t *fml_assemble(const fml_opt_t *opt, int n_seqs, bseq1_t *seqs, int *n_utg);
+fml_utg_t *fml_assemble(const fml_opt_t *opt, int n_seqs, fseq1_t *seqs, int *n_utg);
 
 /**
  * Free unitigs
@@ -100,7 +100,7 @@ void fml_utg_destroy(int n_utg, fml_utg_t *utg);
  * @param n_seqs    number of sequences
  * @param seqs      array of sequences
  */
-void fml_opt_adjust(fml_opt_t *opt, int n_seqs, const bseq1_t *seqs);
+void fml_opt_adjust(fml_opt_t *opt, int n_seqs, const fseq1_t *seqs);
 
 /**
  * Error correction
@@ -111,8 +111,8 @@ void fml_opt_adjust(fml_opt_t *opt, int n_seqs, const bseq1_t *seqs);
  *
  * @return k-mer coverage
  */
-float fml_correct(const fml_opt_t *opt, int n, bseq1_t *seq);
-float fml_fltuniq(const fml_opt_t *opt, int n, bseq1_t *seq);
+float fml_correct(const fml_opt_t *opt, int n, fseq1_t *seq);
+float fml_fltuniq(const fml_opt_t *opt, int n, fseq1_t *seq);
 
 /**
  * Construct FMD-index
@@ -123,7 +123,7 @@ float fml_fltuniq(const fml_opt_t *opt, int n, bseq1_t *seq);
  *
  * @return FMD-index
  */
-struct rld_t *fml_seq2fmi(const fml_opt_t *opt, int n, bseq1_t *seq);
+struct rld_t *fml_seq2fmi(const fml_opt_t *opt, int n, fseq1_t *seq);
 
 /**
  * Generate initial overlap graph
