@@ -7,7 +7,7 @@ int main(int argc, char *argv[])
 {
 	fml_opt_t opt;
 	int c, n_seqs, n_utg, gfa_out = 0;
-	bseq1_t *seqs;
+	fseq1_t *seqs;
 	fml_utg_t *utg;
 
 	fml_opt_init(&opt);
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "  -g              output the assembly graph in the GFA format\n");
 		return 1;
 	}
-	seqs = bseq_read(argv[optind], &n_seqs);
+	seqs = fseq_read(argv[optind], &n_seqs);
 	utg = fml_assemble(&opt, n_seqs, seqs, &n_utg);
 	if (!gfa_out) fml_utg_print(n_utg, utg);
 	else fml_utg_print_gfa(n_utg, utg);
