@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <emmintrin.h>
-#include "ksw.h"
+#include "f_ksw.h"
 
 #ifdef __GNUC__
 #define LIKELY(x) __builtin_expect((x),1)
@@ -36,9 +36,9 @@
 #define UNLIKELY(x) (x)
 #endif
 
-const kswr_t g_defr = { 0, -1, -1, -1, -1, -1, -1 };
+const f_kswr_t f_g_defr = { 0, -1, -1, -1, -1, -1, -1 };
 
-struct _kswq_t {
+struct _f_kswq_t {
 	int qlen, slen;
 	uint8_t shift, mdiff, max, size;
 	__m128i *qp, *H0, *H1, *E, *Hmax;
@@ -55,16 +55,16 @@ struct _kswq_t {
  *
  * @return       Query data structure
  */
-kswq_t *ksw_qinit(int size, int qlen, const uint8_t *query, int m, const int8_t *mat)
+f_kswq_t *f_ksw_qinit(int size, int qlen, const uint8_t *query, int m, const int8_t *mat)
 {
-	kswq_t *q;
+	f_kswq_t *q;
 	int slen, a, tmp, p;
 
 	size = size > 1? 2 : 1;
 	p = 8 * (3 - size); // # values per __m128i
 	slen = (qlen + p - 1) / p; // segmented length
-	q = (kswq_t*)malloc(sizeof(kswq_t) + 256 + 16 * slen * (m + 4)); // a single block of memory
-	q->qp = (__m128i*)(((size_t)q + sizeof(kswq_t) + 15) >> 4 << 4); // align memory
+	q = (f_kswq_t*)malloc(sizeof(f_kswq_t) + 256 + 16 * slen * (m + 4)); // a single block of memory
+	q->qp = (__m128i*)(((size_t)q + sizeof(f_kswq_t) + 15) >> 4 << 4); // align memory
 	q->H0 = q->qp + slen * m;
 	q->H1 = q->H0 + slen;
 	q->E  = q->H1 + slen;
@@ -103,12 +103,12 @@ kswq_t *ksw_qinit(int size, int qlen, const uint8_t *query, int m, const int8_t 
 	return q;
 }
 
-kswr_t ksw_u8(kswq_t *q, int tlen, const uint8_t *target, int _gapo, int _gape, int xtra) // the first gap costs -(_o+_e)
+f_kswr_t f_ksw_u8(f_kswq_t *q, int tlen, const uint8_t *target, int _gapo, int _gape, int xtra) // the first gap costs -(_o+_e)
 {
 	int slen, i, m_b, n_b, te = -1, gmax = 0, minsc, endsc;
 	uint64_t *b;
 	__m128i zero, gapoe, gape, shift, *H0, *H1, *E, *Hmax;
-	kswr_t r;
+	f_kswr_t r;
 
 #define __max_16(ret, xx) do { \
 		(xx) = _mm_max_epu8((xx), _mm_srli_si128((xx), 8)); \
@@ -119,7 +119,7 @@ kswr_t ksw_u8(kswq_t *q, int tlen, const uint8_t *target, int _gapo, int _gape, 
 	} while (0)
 
 	// initialization
-	r = g_defr;
+	r = f_g_defr;
 	minsc = (xtra&KSW_XSUBO)? xtra&0xffff : 0x10000;
 	endsc = (xtra&KSW_XSTOP)? xtra&0xffff : 0x10000;
 	m_b = n_b = 0; b = 0;
@@ -220,12 +220,12 @@ end_loop16:
 	return r;
 }
 
-kswr_t ksw_i16(kswq_t *q, int tlen, const uint8_t *target, int _gapo, int _gape, int xtra) // the first gap costs -(_o+_e)
+f_kswr_t f_ksw_i16(f_kswq_t *q, int tlen, const uint8_t *target, int _gapo, int _gape, int xtra) // the first gap costs -(_o+_e)
 {
 	int slen, i, m_b, n_b, te = -1, gmax = 0, minsc, endsc;
 	uint64_t *b;
 	__m128i zero, gapoe, gape, *H0, *H1, *E, *Hmax;
-	kswr_t r;
+	f_kswr_t r;
 
 #define __max_8(ret, xx) do { \
 		(xx) = _mm_max_epi16((xx), _mm_srli_si128((xx), 8)); \
@@ -235,7 +235,7 @@ kswr_t ksw_i16(kswq_t *q, int tlen, const uint8_t *target, int _gapo, int _gape,
 	} while (0)
 
 	// initialization
-	r = g_defr;
+	r = f_g_defr;
 	minsc = (xtra&KSW_XSUBO)? xtra&0xffff : 0x10000;
 	endsc = (xtra&KSW_XSTOP)? xtra&0xffff : 0x10000;
 	m_b = n_b = 0; b = 0;
@@ -327,22 +327,22 @@ static void revseq(int l, uint8_t *s)
 		t = s[i], s[i] = s[l - 1 - i], s[l - 1 - i] = t;
 }
 
-kswr_t ksw_align(int qlen, uint8_t *query, int tlen, uint8_t *target, int m, const int8_t *mat, int gapo, int gape, int xtra, kswq_t **qry)
+f_kswr_t f_ksw_align(int qlen, uint8_t *query, int tlen, uint8_t *target, int m, const int8_t *mat, int gapo, int gape, int xtra, f_kswq_t **qry)
 {
 	int size;
-	kswq_t *q;
-	kswr_t r, rr;
-	kswr_t (*func)(kswq_t*, int, const uint8_t*, int, int, int);
+	f_kswq_t *q;
+	f_kswr_t r, rr;
+	f_kswr_t (*func)(f_kswq_t*, int, const uint8_t*, int, int, int);
 
-	q = (qry && *qry)? *qry : ksw_qinit((xtra&KSW_XBYTE)? 1 : 2, qlen, query, m, mat);
+	q = (qry && *qry)? *qry : f_ksw_qinit((xtra&KSW_XBYTE)? 1 : 2, qlen, query, m, mat);
 	if (qry && *qry == 0) *qry = q;
-	func = q->size == 2? ksw_i16 : ksw_u8;
+	func = q->size == 2? f_ksw_i16 : f_ksw_u8;
 	size = q->size;
 	r = func(q, tlen, target, gapo, gape, xtra);
 	if (qry == 0) free(q);
 	if ((xtra&KSW_XSTART) == 0 || ((xtra&KSW_XSUBO) && r.score < (xtra&0xffff))) return r;
 	revseq(r.qe + 1, query); revseq(r.te + 1, target); // +1 because qe/te points to the exact end, not the position after the end
-	q = ksw_qinit(size, r.qe + 1, query, m, mat);
+	q = f_ksw_qinit(size, r.qe + 1, query, m, mat);
 	rr = func(q, tlen, target, gapo, gape, KSW_XSTOP | r.score);
 	revseq(r.qe + 1, query); revseq(r.te + 1, target);
 	free(q);

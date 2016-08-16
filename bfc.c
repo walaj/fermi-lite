@@ -7,6 +7,7 @@
 #include "kmer.h"
 #include "internal.h"
 #include "fml.h"
+#include "bfc.h"
 
 /*******************
  *** BFC options ***

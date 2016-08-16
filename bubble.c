@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "mag.h"
 #include "kvec.h"
-#include "ksw.h"
+#include "f_ksw.h"
 #include "internal.h"
 #include "khash.h"
 KHASH_DECLARE(64, uint64_t, uint64_t)
@@ -230,11 +230,11 @@ int mag_vh_pop_simple(mag_t *g, uint64_t idd, float max_cov, float max_frac, int
 	ret = 1;
 	if (l[0] > 0 && l[1] > 0) { // then do SW to compute n_diff and r_diff
 		int8_t mat[16];
-		kswr_t aln;
+		f_kswr_t aln;
 		for (i = k = 0; i < 4; ++i)
 			for (j = 0; j < 4; ++j)
 				mat[k++] = i == j? 5 : -4;
-		aln = ksw_align(l[0], (uint8_t*)seq[0], l[1], (uint8_t*)seq[1], 4, mat, 5, 2, 0, 0);
+		aln = f_ksw_align(l[0], (uint8_t*)seq[0], l[1], (uint8_t*)seq[1], 4, mat, 5, 2, 0, 0);
 		n_diff = ((l[0] < l[1]? l[0] : l[1]) * 5. - aln.score) / (5. + 4.); // 5: matching score; -4: mismatchig score
 		r_diff = n_diff / ((l[0] + l[1]) / 2.);
 		//fprintf(stderr, "===> %f %f <===\n", n_diff, r_diff); for (j = 0; j < 2; ++j) { for (i = 0; i < l[j]; ++i) fputc("ACGTN"[(int)seq[j][i]], stderr); fputc('\n', stderr); }
@@ -296,7 +296,7 @@ void mag_v_pop_open(mag_t *g, magv_t *p, int min_elen)
 	s = &p->nei[dir];
 	for (l = 0; l < s->n; ++l) { // if we use "if (p->nei[0].n + p->nei[1].n != 1)", s->n == 1
 		uint64_t v;
-		kswq_t *qry;
+		f_kswq_t *qry;
 		if ((int64_t)s->a[l].x < 0) continue;
 		v = mag_tid2idd(g->h, s->a[l].x);
 		q = &g->v.a[v>>1];
@@ -312,14 +312,14 @@ void mag_v_pop_open(mag_t *g, magv_t *p, int min_elen)
 				seq[k++] = 4 - p->seq[j];
 		}
 		l_qry = k;
-		qry = ksw_qinit(2, l_qry, seq, 4, mat);
+		qry = f_ksw_qinit(2, l_qry, seq, 4, mat);
 		//fprintf(stderr, "===> %lld:%lld:%d[%d], %d, %ld <===\n", p->k[0], p->k[1], s->n, l, p->nsr, q->nei[v&1].n);
 		//for (j = 0; j < k; ++j) fputc("ACGTN"[(int)seq[j]], stderr); fputc('\n', stderr);
 
 		r = &q->nei[v&1];
 		for (i = 0; i < r->n; ++i) {
 			uint64_t w;
-			kswr_t aln;
+			f_kswr_t aln;
 			if (r->a[i].x == p->k[dir] || (int64_t)r->a[i].x < 0) continue;
 			w = mag_tid2idd(g->h, r->a[i].x);
 			// get the target sequence
@@ -331,7 +331,7 @@ void mag_v_pop_open(mag_t *g, magv_t *p, int min_elen)
 				for (j = r->a[i].y, k = 0; j < t->len && k < max_l; ++j)
 					seq[k++] = t->seq[j] - 1;
 			}
-			aln = ksw_align(0, 0, k, seq, 4, mat, 5, 2, 0, &qry);
+			aln = f_ksw_align(0, 0, k, seq, 4, mat, 5, 2, 0, &qry);
 			//for (j = 0; j < k; ++j) fputc("ACGTN"[(int)seq[j]], stderr); fprintf(stderr, "\t%d\t%f\n", aln.score, (l_qry * 5. - aln.score) / (5. + 4.));
 			if (aln.score >= l_qry * 5 / 2) {
 				double r_diff, n_diff;

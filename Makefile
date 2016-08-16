@@ -5,7 +5,7 @@ INCLUDES=
 OBJS=		kthread.o misc.o \
 			bseq.o htab.o bfc.o \
 			rle.o rope.o mrope.o rld0.o \
-			unitig.o mag.o bubble.o ksw.o
+			unitig.o mag.o bubble.o f_ksw.o
 PROG=		fml-asm
 LIBS=		-lm -lz -lpthread
 
@@ -30,12 +30,12 @@ depend:
 
 # DO NOT DELETE
 
-bfc.o: htab.h kmer.h internal.h fml.h kvec.h ksort.h
+bfc.o: bfc.h htab.h kmer.h internal.h fml.h kvec.h ksort.h
 bseq.o: fml.h kseq.h
-bubble.o: mag.h kstring.h fml.h kvec.h ksw.h internal.h khash.h
+bubble.o: mag.h kstring.h fml.h kvec.h f_ksw.h internal.h khash.h
 example.o: fml.h
 htab.o: htab.h kmer.h khash.h
-ksw.o: ksw.h
+f_ksw.o: f_ksw.h
 mag.o: mag.h kstring.h fml.h kvec.h internal.h kseq.h khash.h ksort.h
 misc.o: internal.h fml.h kstring.h rle.h mrope.h rope.h rld0.h mag.h kvec.h
 misc.o: htab.h kmer.h khash.h
