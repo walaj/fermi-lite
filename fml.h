@@ -1,5 +1,5 @@
-#ifndef FML_H
-#define FML_H
+#ifndef FKIT_FML_H__
+#define FKIT_FML_H__
 
 #define FML_VERSION "r50"
 

@@ -77,13 +77,13 @@ struct rld_t *fml_fmi_gen(int n, fseq1_t *seq, int is_mt)
 		int i;
 		fseq1_t *s = &seq[k];
 		if (s->l_seq == 0) continue;
-		free(s->qual);
+		//free(s->qual); // Jeremiah. Clear later
 		for (i = 0; i < s->l_seq; ++i)
 			s->seq[i] = seq_nt6_table[(int)s->seq[i]];
 		for (i = 0; i < s->l_seq; ++i)
 			if (s->seq[i] == 5) break;
 		if (i < s->l_seq) {
-			free(s->seq);
+		  //free(s->seq); // Jeremiah. Clear later
 			continue;
 		}
 		if (is_rev_same(s->l_seq, s->seq))
@@ -92,9 +92,9 @@ struct rld_t *fml_fmi_gen(int n, fseq1_t *seq, int is_mt)
 		kputsn(s->seq, s->l_seq + 1, &str);
 		seq_revcomp6(s->l_seq, (uint8_t*)s->seq);
 		kputsn(s->seq, s->l_seq + 1, &str);
-		free(s->seq);
+		//free(s->seq); // Jeremiah clear later
 	}
-	free(seq);
+	//free(seq); // Jeremiah. clear later
 	mr_insert_multi(mr, str.l, (uint8_t*)str.s, is_mt);
 	free(str.s);
 

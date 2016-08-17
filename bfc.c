@@ -13,18 +13,7 @@
  *** BFC options ***
  *******************/
 
-typedef struct {
-	int n_threads, q, k, l_pre;
-	int min_cov; // a k-mer is considered solid if the count is no less than this
-
-	int max_end_ext;
-	int win_multi_ec;
-	float min_trim_frac;
-
-	// these ec options cannot be changed on the command line
-	int w_ec, w_ec_high, w_absent, w_absent_high;
-	int max_path_diff, max_heap;
-} bfc_opt_t;
+bfc_kmer_t bfc_kmer_null = {{0,0,0,0}};
 
 void bfc_opt_init(bfc_opt_t *opt)
 {
@@ -47,27 +36,6 @@ void bfc_opt_init(bfc_opt_t *opt)
 	opt->max_heap = 100;
 }
 
-/**********************
- *** K-mer counting ***
- **********************/
-
-#define CNT_BUF_SIZE 256
-
-typedef struct { // cache to reduce locking
-	uint64_t y[2];
-	int is_high;
-} insbuf_t;
-
-typedef struct {
-	int k, q;
-	int n_seqs;
-	const fseq1_t *seqs;
-	bfc_ch_t *ch;
-	int *n_buf;
-	insbuf_t **buf;
-} cnt_step_t;
-
-bfc_kmer_t bfc_kmer_null = {{0,0,0,0}};
 
 static int bfc_kmer_bufclear(cnt_step_t *cs, int forced, int tid)
 {
