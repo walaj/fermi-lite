@@ -75,7 +75,9 @@ static void worker_count(void *_data, long k, int tid)
 		if (c < 4) {
 			bfc_kmer_append(cs->k, x.x, c);
 			qmer = (qmer<<1 | (s->qual == 0 || s->qual[i] - 33 >= cs->q)) & mask;
-			if (++l >= cs->k) bfc_kmer_insert(cs, &x, (qmer == mask), tid);
+			if (++l >= cs->k) {
+			  bfc_kmer_insert(cs, &x, (qmer == mask), tid);
+			}
 		} else l = 0, qmer = 0, x = bfc_kmer_null;
 	}
 }
@@ -86,43 +88,16 @@ struct bfc_ch_s *fml_count(int n, const fseq1_t *seq, int k, int q, int l_pre, i
 	cnt_step_t cs;
 	cs.n_seqs = n, cs.seqs = seq, cs.k = k, cs.q = q;
 	cs.ch = bfc_ch_init(cs.k, l_pre);
-	cs.n_buf = calloc(n_threads, sizeof(int));
-	cs.buf = calloc(n_threads, sizeof(void*));
+	cs.n_buf = (int*)calloc(n_threads, sizeof(int)); // jwala added cast
+	cs.buf = (insbuf_t**)calloc(n_threads, sizeof(void*)); // jwala added cast
 	for (i = 0; i < n_threads; ++i)
-		cs.buf[i] = malloc(CNT_BUF_SIZE * sizeof(insbuf_t));
+	  cs.buf[i] = (insbuf_t*)malloc(CNT_BUF_SIZE * sizeof(insbuf_t)); // jwala added cast
 	kt_for(n_threads, worker_count, &cs, cs.n_seqs);
 	for (i = 0; i < n_threads; ++i) free(cs.buf[i]);
 	free(cs.buf); free(cs.n_buf);
 	return cs.ch;
 }
 
-/***************
- *** Correct ***
- ***************/
-
-#define BFC_MAX_KMER     63
-#define BFC_MAX_BF_SHIFT 37
-
-#define BFC_MAX_PATHS 4
-#define BFC_EC_HIST 5
-#define BFC_EC_HIST_HIGH 2
-
-#define BFC_EC_MIN_COV_COEF .1
-
-/**************************
- * Sequence struct for ec *
- **************************/
-
-#include "kvec.h"
-
-typedef struct { // NOTE: unaligned memory
-	uint8_t b:3, q:1, ob:3, oq:1;
-	uint8_t dummy;
-	uint16_t lcov:6, hcov:6, solid_end:1, high_end:1, ec:1, absent:1;
-	int i;
-} ecbase_t;
-
-typedef kvec_t(ecbase_t) ecseq_t;
 
 static int bfc_seq_conv(const char *s, const char *q, int qthres, ecseq_t *seq)
 {
@@ -233,52 +208,6 @@ uint64_t bfc_ec_best_island(int k, const ecseq_t *s)
 	return max > 0? (uint64_t)(max_i - max - k + 1) << 32 | max_i : 0;
 }
 
-/********************
- * Correct one read *
- ********************/
-
-#include "ksort.h"
-
-#define ECCODE_MISC      1
-#define ECCODE_MANY_N    2
-#define ECCODE_NO_SOLID  3
-#define ECCODE_UNCORR_N  4
-#define ECCODE_MANY_FAIL 5
-
-typedef struct {
-	uint32_t ec_code:3, brute:1, n_ec:14, n_ec_high:14;
-	uint32_t n_absent:24, max_heap:8;
-} ecstat_t;
-
-typedef struct {
-	uint8_t ec:1, ec_high:1, absent:1, absent_high:1, b:4;
-} bfc_penalty_t;
-
-typedef struct {
-	int tot_pen;
-	int i; // base position
-	int k; // position in the stack
-	int32_t ecpos_high[BFC_EC_HIST_HIGH];
-	int32_t ecpos[BFC_EC_HIST];
-	bfc_kmer_t x;
-} echeap1_t;
-
-typedef struct {
-	int parent, i, tot_pen;
-	uint8_t b;
-	bfc_penalty_t pen;
-	uint16_t cnt;
-} ecstack1_t;
-
-typedef struct {
-	const bfc_opt_t *opt;
-	const bfc_ch_t *ch;
-	kvec_t(echeap1_t) heap;
-	kvec_t(ecstack1_t) stack;
-	ecseq_t seq, tmp, ec[2];
-	int mode;
-	ecstat_t ori_st;
-} bfc_ec1buf_t;
 
 #define heap_lt(a, b) ((a).tot_pen > (b).tot_pen)
 KSORT_INIT(ec, echeap1_t, heap_lt)
@@ -286,7 +215,7 @@ KSORT_INIT(ec, echeap1_t, heap_lt)
 static bfc_ec1buf_t *ec1buf_init(const bfc_opt_t *opt, const bfc_ch_t *ch)
 {
 	bfc_ec1buf_t *e;
-	e = calloc(1, sizeof(bfc_ec1buf_t));
+	e = (bfc_ec1buf_t*)calloc(1, sizeof(bfc_ec1buf_t)); // jwala added cast
 	e->opt = opt, e->ch = ch;
 	return e;
 }
@@ -536,18 +465,6 @@ ecstat_t bfc_ec1(bfc_ec1buf_t *e, char *seq, char *qual)
 	return s;
 }
 
-/********************
- * Error correction *
- ********************/
-
-typedef struct {
-	const bfc_opt_t *opt;
-	const bfc_ch_t *ch;
-	bfc_ec1buf_t **e;
-	int64_t n_processed;
-	int n_seqs, flt_uniq;
-	fseq1_t *seqs;
-} ec_step_t;
 
 static uint64_t max_streak(int k, const bfc_ch_t *ch, const fseq1_t *s)
 {
@@ -612,6 +529,7 @@ float fml_correct_core(const fml_opt_t *opt, int flt_uniq, int n, fseq1_t *seq)
 	memset(&es, 0, sizeof(ec_step_t));
 	es.opt = &bfc_opt, es.n_seqs = n, es.seqs = seq, es.flt_uniq = flt_uniq;
 
+	fprintf(stderr, "N: %d  K: %d  q: %d  L: %d NT: %d\n", n, bfc_opt.k, bfc_opt.q, bfc_opt.l_pre, bfc_opt.n_threads);
 	es.ch = ch = fml_count(n, seq, bfc_opt.k, bfc_opt.q, bfc_opt.l_pre, bfc_opt.n_threads);
 	mode = bfc_ch_hist(ch, hist, hist_high);
 	for (i = opt->min_cnt; i < 256; ++i)
@@ -621,7 +539,7 @@ float fml_correct_core(const fml_opt_t *opt, int flt_uniq, int n, fseq1_t *seq)
 	bfc_opt.min_cov = bfc_opt.min_cov < opt->max_cnt? bfc_opt.min_cov : opt->max_cnt;
 	bfc_opt.min_cov = bfc_opt.min_cov > opt->min_cnt? bfc_opt.min_cov : opt->min_cnt;
 
-	es.e = calloc(es.opt->n_threads, sizeof(void*));
+	es.e = (bfc_ec1buf_t**)calloc(es.opt->n_threads, sizeof(void*)); //jwala added cast
 	for (i = 0; i < es.opt->n_threads; ++i)
 		es.e[i] = ec1buf_init(es.opt, ch), es.e[i]->mode = mode;
 	kt_for(es.opt->n_threads, worker_ec, &es, es.n_seqs);
@@ -630,6 +548,18 @@ float fml_correct_core(const fml_opt_t *opt, int flt_uniq, int n, fseq1_t *seq)
 	free(es.e);
 	bfc_ch_destroy(ch);
 	return kcov;
+}
+
+//jwala added here (linker issues)
+void kmer_correct(ec_step_t * es, int mode, bfc_ch_t * ch) {
+  int i = 0;
+  es->e = (bfc_ec1buf_t**)calloc(es->opt->n_threads, sizeof(void*)); //jwala added cast
+  for (i = 0; i < es->opt->n_threads; ++i)
+    es->e[i] = ec1buf_init(es->opt, ch), es->e[i]->mode = mode;
+  kt_for(es->opt->n_threads, worker_ec, es, es->n_seqs);
+  for (i = 0; i < es->opt->n_threads; ++i)
+    ec1buf_destroy(es->e[i]);
+  free(es->e);
 }
 
 float fml_correct(const fml_opt_t *opt, int n, fseq1_t *seq)
