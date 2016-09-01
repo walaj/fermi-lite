@@ -280,8 +280,10 @@ fml_utg_t *fml_assemble(const fml_opt_t *opt0, int n_seqs, fseq1_t *seqs, int *n
 	fml_opt_t opt = *opt0;
 	float kcov;
 
+
 	fml_opt_adjust(&opt, n_seqs, seqs);
 	if (opt.ec_k >= 0) fml_correct(&opt, n_seqs, seqs);
+
 	kcov = fml_fltuniq(&opt, n_seqs, seqs);
 	e = fml_seq2fmi(&opt, n_seqs, seqs);
 	g = fml_fmi2mag(&opt, e);

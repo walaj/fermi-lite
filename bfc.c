@@ -88,10 +88,10 @@ struct bfc_ch_s *fml_count(int n, const fseq1_t *seq, int k, int q, int l_pre, i
 	cnt_step_t cs;
 	cs.n_seqs = n, cs.seqs = seq, cs.k = k, cs.q = q;
 	cs.ch = bfc_ch_init(cs.k, l_pre);
-	cs.n_buf = (int*)calloc(n_threads, sizeof(int)); // jwala added cast
-	cs.buf = (insbuf_t**)calloc(n_threads, sizeof(void*)); // jwala added cast
+	cs.n_buf = calloc(n_threads, sizeof(int)); 
+	cs.buf = calloc(n_threads, sizeof(void*)); 
 	for (i = 0; i < n_threads; ++i)
-	  cs.buf[i] = (insbuf_t*)malloc(CNT_BUF_SIZE * sizeof(insbuf_t)); // jwala added cast
+	  cs.buf[i] = malloc(CNT_BUF_SIZE * sizeof(insbuf_t)); 
 	kt_for(n_threads, worker_count, &cs, cs.n_seqs);
 	for (i = 0; i < n_threads; ++i) free(cs.buf[i]);
 	free(cs.buf); free(cs.n_buf);
@@ -215,7 +215,7 @@ KSORT_INIT(ec, echeap1_t, heap_lt)
 static bfc_ec1buf_t *ec1buf_init(const bfc_opt_t *opt, const bfc_ch_t *ch)
 {
 	bfc_ec1buf_t *e;
-	e = (bfc_ec1buf_t*)calloc(1, sizeof(bfc_ec1buf_t)); // jwala added cast
+	e = calloc(1, sizeof(bfc_ec1buf_t)); 
 	e->opt = opt, e->ch = ch;
 	return e;
 }
@@ -529,28 +529,31 @@ float fml_correct_core(const fml_opt_t *opt, int flt_uniq, int n, fseq1_t *seq)
 	memset(&es, 0, sizeof(ec_step_t));
 	es.opt = &bfc_opt, es.n_seqs = n, es.seqs = seq, es.flt_uniq = flt_uniq;
 
-	fprintf(stderr, "N: %d  K: %d  q: %d  L: %d NT: %d\n", n, bfc_opt.k, bfc_opt.q, bfc_opt.l_pre, bfc_opt.n_threads);
+	//fprintf(stderr, "N: %d  K: %d  q: %d  L: %d NT: %d\n", n, bfc_opt.k, bfc_opt.q, bfc_opt.l_pre, bfc_opt.n_threads);
 	es.ch = ch = fml_count(n, seq, bfc_opt.k, bfc_opt.q, bfc_opt.l_pre, bfc_opt.n_threads);
+	
 	mode = bfc_ch_hist(ch, hist, hist_high);
+
 	for (i = opt->min_cnt; i < 256; ++i)
-		sum_k += hist[i], tot_k += i * hist[i];
+	  sum_k += hist[i], tot_k += i * hist[i];
 	kcov = (float)tot_k / sum_k;
 	bfc_opt.min_cov = (int)(BFC_EC_MIN_COV_COEF * kcov + .499);
 	bfc_opt.min_cov = bfc_opt.min_cov < opt->max_cnt? bfc_opt.min_cov : opt->max_cnt;
 	bfc_opt.min_cov = bfc_opt.min_cov > opt->min_cnt? bfc_opt.min_cov : opt->min_cnt;
-
-	es.e = (bfc_ec1buf_t**)calloc(es.opt->n_threads, sizeof(void*)); //jwala added cast
+	
+	es.e = calloc(es.opt->n_threads, sizeof(void*));
 	for (i = 0; i < es.opt->n_threads; ++i)
-		es.e[i] = ec1buf_init(es.opt, ch), es.e[i]->mode = mode;
+	  es.e[i] = ec1buf_init(es.opt, ch), es.e[i]->mode = mode;
 	kt_for(es.opt->n_threads, worker_ec, &es, es.n_seqs);
 	for (i = 0; i < es.opt->n_threads; ++i)
-		ec1buf_destroy(es.e[i]);
+	  ec1buf_destroy(es.e[i]);
 	free(es.e);
 	bfc_ch_destroy(ch);
 	return kcov;
 }
 
 //jwala added here (linker issues)
+// copied from fml_correct_core
 void kmer_correct(ec_step_t * es, int mode, bfc_ch_t * ch) {
   int i = 0;
   es->e = (bfc_ec1buf_t**)calloc(es->opt->n_threads, sizeof(void*)); //jwala added cast
