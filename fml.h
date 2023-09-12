@@ -1,7 +1,7 @@
 #ifndef FKIT_FML_H__
 #define FKIT_FML_H__
 
-#define FML_VERSION "r50"
+#define FML_VERSION "r55"
 
 #include <stdint.h>
 
@@ -11,10 +11,11 @@ typedef struct {
 } fseq1_t;
 
 #define MAG_F_AGGRESSIVE 0x20 // pop variant bubbles (not default)
+#define MAG_F_POPOPEN    0x40 // aggressive tip trimming (default)
 #define MAG_F_NO_SIMPL   0x80 // skip bubble simplification (default)
 
 typedef struct {
-	int flag, min_ovlp, min_elen, min_ensr, min_insr, max_bdist, max_bvtx, min_merge_len, trim_len, trim_depth;
+	int flag, min_ovlp, min_elen, min_ensr, min_insr, max_bdist, max_bdiff, max_bvtx, min_merge_len, trim_len, trim_depth;
 	float min_dratio1, max_bcov, max_bfrac;
 } magopt_t;
 
@@ -43,6 +44,8 @@ typedef struct {
 	int n_ovlp[2];    // number of 5'-end [0] and 3'-end [1] overlaps
 	fml_ovlp_t *ovlp; // overlaps, of size n_ovlp[0]+n_ovlp[1]
 } fml_utg_t;
+
+extern int fm_verbose;
 
 #ifdef __cplusplus
 extern "C" {
@@ -121,7 +124,7 @@ float fml_fltuniq(const fml_opt_t *opt, int n, fseq1_t *seq);
  * @param n         number of sequences
  * @param seq       array of sequences; FREED on return
  *
- * @return FMD-index
+ * @return FMD-index on success; NULL if all input sequences are zero in length
  */
 struct rld_t *fml_seq2fmi(const fml_opt_t *opt, int n, fseq1_t *seq);
 
