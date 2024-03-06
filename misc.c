@@ -214,7 +214,7 @@ fml_utg_t *fml_mag2utg(struct mag_t *g, int *n)
 
 void fml_utg_print(int n, const fml_utg_t *utg)
 {
-	int i, j, l;
+	int i, j;
 	kstring_t out = {0,0,0};
 	for (i = 0; i < n; ++i) {
 		const fml_utg_t *u = &utg[i];
@@ -234,7 +234,7 @@ void fml_utg_print(int n, const fml_utg_t *utg)
 		}
 		if (u->n_ovlp[1] == 0) kputc('.', &out);
 		kputc('\n', &out);
-		l = out.l;
+		//l = out.l;
 		kputsn(u->seq, u->len, &out);
 		kputsn("\n+\n", 3, &out);
 		kputsn(u->cov, u->len, &out);

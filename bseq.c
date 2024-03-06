@@ -12,7 +12,7 @@ fseq1_t *fseq_read(const char *fn, int *n_)
 	fseq1_t *seqs;
 	kseq_t *ks;
 	int m, n;
-	uint64_t size = 0;
+	//uint64_t size = 0;
 
 	*n_ = 0;
 	fp = fn && strcmp(fn, "-")? gzopen(fn, "r") : gzdopen(fileno(stdin), "r");
@@ -30,7 +30,7 @@ fseq1_t *fseq_read(const char *fn, int *n_)
 		s->seq = strdup(ks->seq.s);
 		s->qual = ks->qual.l? strdup(ks->qual.s) : 0;
 		s->l_seq = ks->seq.l;
-		size += seqs[n++].l_seq;
+		//size += seqs[n++].l_seq;
 	}
 	*n_ = n;
 

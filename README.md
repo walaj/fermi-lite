@@ -1,7 +1,9 @@
 ## Getting Started
 ```sh
-git clone https://github.com/lh3/fermi-lite
-cd fermi-lite && make
+git clone https://github.com/walaj/fermi-lite
+## if compiling on ARM architecture, need to add include to SIMDE library e.g. make INCLUDES=-I/opt/homebrew/Cellar/simde/0.7.6/include
+## can install with something like "brew install simde" and then find the location with "brew info simde"
+cd fermi-lite && make 
 ./fml-asm test/MT-simu.fq.gz > MT.fq
 # to compile your program:
 gcc -Wall -O2 prog.c -o prog -L/path/to/fermi-lite -lfml -lz -lm -lpthread
