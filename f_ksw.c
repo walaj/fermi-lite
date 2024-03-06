@@ -27,52 +27,17 @@
 #include <stdint.h>
 #include "f_ksw.h"
 
-// sim architechture not build for arm, need simde emulator library for mac
-#if defined(__arm__) || defined(__aarch64__)
-    #include "simde/x86/sse2.h"
-    typedef simde__m128i __m128i;
-    #define MM_MAX_EPU8 simde_mm_max_epu8
-    #define MM_SUBS_EPU8 simde_mm_subs_epu8
-    #define MM_ADDS_EPU8 simde_mm_adds_epu8
-    #define MM_SET1_EPI8 simde_mm_set1_epi8
-    #define MM_MOVEMASK_EPI8 simde_mm_movemask_epi8
-    #define MM_CMPEQ_EPI8 simde_mm_cmpeq_epi8
-
-    #define MM_EXTRACT_EPI16 simde_mm_extract_epi16
-    #define MM_MAX_EPI16 simde_mm_max_epi16
-    #define MM_SET1_EPI16 simde_mm_set1_epi16
-    #define MM_ADDS_EPI16 simde_mm_adds_epi16
-    #define MM_SUBS_EPU16 simde_mm_subs_epu16
-    #define MM_CMPGT_EPI16 simde_mm_cmpgt_epi16
-
-    #define MM_SET1_EPI32 simde_mm_set1_epi32
-
-    #define MM_STORE_SI128 simde_mm_store_si128
-    #define MM_LOAD_SI128 simde_mm_load_si128
-    #define MM_SLLI_SI128 simde_mm_slli_si128
-    #define MM_SRLI_SI128 simde_mm_srli_si128
+#if defined __SSE2__
+#include <emmintrin.h>
+#elif defined __ARM_NEON
+#include "neon_sse.h"
 #else
-    #include <emmintrin.h>
-    #define MM_MAX_EPU8 _mm_max_epu8
-    #define MM_SUBS_EPU8 _mm_subs_epu8
-    #define MM_ADDS_EPU8 _mm_adds_epu8
-    #define MM_SET1_EPI8 _mm_set1_epi8
-    #define MM_MOVEMASK_EPI8 _mm_movemask_epi8
-    #define MM_CMPEQ_EPI8 _mm_cmpeq_epi8
+#include "scalar_sse.h"
+#endif
 
-    #define MM_EXTRACT_EPI16 _mm_extract_epi16
-    #define MM_MAX_EPI16 _mm_max_epi16
-    #define MM_SET1_EPI16 _mm_set1_epi16
-    #define MM_ADDS_EPI16 _mm_adds_epi16
-    #define MM_SUBS_EPU16 _mm_subs_epu16
-    #define MM_CMPGT_EPI16 _mm_cmpgt_epi16
-
-    #define MM_SET1_EPI32 _mm_set1_epi32
-
-    #define MM_STORE_SI128 _mm_store_si128
-    #define MM_LOAD_SI128 _mm_load_si128
-    #define MM_SLLI_SI128 _mm_slli_si128
-    #define MM_SRLI_SI128 _mm_srli_si128
+#if defined __ARM_NEON
+// This macro implicitly uses each function's `zero` local variable
+#define _mm_slli_si128(a, n) (vextq_u8(zero, (a), 16 - (n)))
 #endif
 
 #ifdef __GNUC__
@@ -157,36 +122,49 @@ f_kswr_t f_ksw_u8(f_kswq_t *q, int tlen, const uint8_t *target, int _gapo, int _
 	__m128i zero, gapoe, gape, shift, *H0, *H1, *E, *Hmax;
 	f_kswr_t r;
 
+	#if defined __SSE2__
 #define __max_16(ret, xx) do { \
-		(xx) = MM_MAX_EPU8((xx), MM_SRLI_SI128((xx), 8)); \
-		(xx) = MM_MAX_EPU8((xx), MM_SRLI_SI128((xx), 4)); \
-		(xx) = MM_MAX_EPU8((xx), MM_SRLI_SI128((xx), 2)); \
-		(xx) = MM_MAX_EPU8((xx), MM_SRLI_SI128((xx), 1)); \
-    	(ret) = MM_EXTRACT_EPI16((xx), 0) & 0x00ff; \
+		(xx) = _mm_max_epu8((xx), _mm_srli_si128((xx), 8)); \
+		(xx) = _mm_max_epu8((xx), _mm_srli_si128((xx), 4)); \
+		(xx) = _mm_max_epu8((xx), _mm_srli_si128((xx), 2)); \
+		(xx) = _mm_max_epu8((xx), _mm_srli_si128((xx), 1)); \
+    	(ret) = _mm_extract_epi16((xx), 0) & 0x00ff; \
 	} while (0)
+
+// Given entries with arbitrary values, return whether they are all 0x00
+#define allzero_16(xx) (_mm_movemask_epi8(_mm_cmpeq_epi8((xx), zero)) == 0xffff)
+
+#elif defined __ARM_NEON
+#define __max_16(ret, xx) (ret) = vmaxvq_u8((xx))
+#define allzero_16(xx) (vmaxvq_u8((xx)) == 0)
+
+#else
+#define __max_16(ret, xx) (ret) = m128i_max_u8((xx))
+#define allzero_16(xx) (m128i_allzero((xx)))
+#endif
 
 	// initialization
 	r = f_g_defr;
 	minsc = (xtra&KSW_XSUBO)? xtra&0xffff : 0x10000;
 	endsc = (xtra&KSW_XSTOP)? xtra&0xffff : 0x10000;
 	m_b = n_b = 0; b = 0;
-	zero = MM_SET1_EPI32(0);
-	gapoe = MM_SET1_EPI8(_gapo + _gape);
-	gape = MM_SET1_EPI8(_gape);
-	shift = MM_SET1_EPI8(q->shift);
+	zero = _mm_set1_epi32(0);
+	gapoe = _mm_set1_epi8(_gapo + _gape);
+	gape = _mm_set1_epi8(_gape);
+	shift = _mm_set1_epi8(q->shift);
 	H0 = q->H0; H1 = q->H1; E = q->E; Hmax = q->Hmax;
 	slen = q->slen;
 	for (i = 0; i < slen; ++i) {
-		MM_STORE_SI128(E + i, zero);
-		MM_STORE_SI128(H0 + i, zero);
-		MM_STORE_SI128(Hmax + i, zero);
+		_mm_store_si128(E + i, zero);
+		_mm_store_si128(H0 + i, zero);
+		_mm_store_si128(Hmax + i, zero);
 	}
 	// the core loop
 	for (i = 0; i < tlen; ++i) {
-		int j, k, cmp, imax;
+		int j, k, imax;
 		__m128i e, h, f = zero, max = zero, *S = q->qp + target[i] * slen; // s is the 1st score vector
-		h = MM_LOAD_SI128(H0 + slen - 1); // h={2,5,8,11,14,17,-1,-1} in the above example
-		h = MM_SLLI_SI128(h, 1); // h=H(i-1,-1); << instead of >> because x64 is little-endian
+		h = _mm_load_si128(H0 + slen - 1); // h={2,5,8,11,14,17,-1,-1} in the above example
+		h = _mm_slli_si128(h, 1); // h=H(i-1,-1); << instead of >> because x64 is little-endian
 		for (j = 0; LIKELY(j < slen); ++j) {
 			/* SW cells are computed in the following order:
 			 *   H(i,j)   = max{H(i-1,j-1)+S(i,j), E(i,j), F(i,j)}
@@ -194,35 +172,34 @@ f_kswr_t f_ksw_u8(f_kswq_t *q, int tlen, const uint8_t *target, int _gapo, int _
 			 *   F(i,j+1) = max{H(i,j)-q, F(i,j)-r}
 			 */
 			// compute H'(i,j); note that at the beginning, h=H'(i-1,j-1)
-			h = MM_ADDS_EPU8(h, MM_LOAD_SI128(S + j));
-			h = MM_SUBS_EPU8(h, shift); // h=H'(i-1,j-1)+S(i,j)
-			e = MM_LOAD_SI128(E + j); // e=E'(i,j)
-			h = MM_MAX_EPU8(h, e);
-			h = MM_MAX_EPU8(h, f); // h=H'(i,j)
-			max = MM_MAX_EPU8(max, h); // set max
-			MM_STORE_SI128(H1 + j, h); // save to H'(i,j)
+			h = _mm_adds_epu8(h, _mm_load_si128(S + j));
+			h = _mm_subs_epu8(h, shift); // h=H'(i-1,j-1)+S(i,j)
+			e = _mm_load_si128(E + j); // e=E'(i,j)
+			h = _mm_max_epu8(h, e);
+			h = _mm_max_epu8(h, f); // h=H'(i,j)
+			max = _mm_max_epu8(max, h); // set max
+			_mm_store_si128(H1 + j, h); // save to H'(i,j)
 			// now compute E'(i+1,j)
-			h = MM_SUBS_EPU8(h, gapoe); // h=H'(i,j)-gapo
-			e = MM_SUBS_EPU8(e, gape); // e=E'(i,j)-gape
-			e = MM_MAX_EPU8(e, h); // e=E'(i+1,j)
-			MM_STORE_SI128(E + j, e); // save to E'(i+1,j)
+			h = _mm_subs_epu8(h, gapoe); // h=H'(i,j)-gapo
+			e = _mm_subs_epu8(e, gape); // e=E'(i,j)-gape
+			e = _mm_max_epu8(e, h); // e=E'(i+1,j)
+			_mm_store_si128(E + j, e); // save to E'(i+1,j)
 			// now compute F'(i,j+1)
-			f = MM_SUBS_EPU8(f, gape);
-			f = MM_MAX_EPU8(f, h);
+			f = _mm_subs_epu8(f, gape);
+			f = _mm_max_epu8(f, h);
 			// get H'(i-1,j) and prepare for the next j
-			h = MM_LOAD_SI128(H0 + j); // h=H'(i-1,j)
+			h = _mm_load_si128(H0 + j); // h=H'(i-1,j)
 		}
 		// NB: we do not need to set E(i,j) as we disallow adjecent insertion and then deletion
 		for (k = 0; LIKELY(k < 16); ++k) { // this block mimics SWPS3; NB: H(i,j) updated in the lazy-F loop cannot exceed max
-			f = MM_SLLI_SI128(f, 1);
+			f = _mm_slli_si128(f, 1);
 			for (j = 0; LIKELY(j < slen); ++j) {
-				h = MM_LOAD_SI128(H1 + j);
-				h = MM_MAX_EPU8(h, f); // h=H'(i,j)
-				MM_STORE_SI128(H1 + j, h);
-				h = MM_SUBS_EPU8(h, gapoe);
-				f = MM_SUBS_EPU8(f, gape);
-				cmp = MM_MOVEMASK_EPI8(MM_CMPEQ_EPI8(MM_SUBS_EPU8(f, h), zero));
-				if (UNLIKELY(cmp == 0xffff)) goto end_loop16;
+				h = _mm_load_si128(H1 + j);
+				h = _mm_max_epu8(h, f); // h=H'(i,j)
+				_mm_store_si128(H1 + j, h);
+				h = _mm_subs_epu8(h, gapoe);
+				f = _mm_subs_epu8(f, gape);
+				if (UNLIKELY(allzero_16(_mm_subs_epu8(f, h)))) goto end_loop16;
 			}
 		}
 end_loop16:
@@ -240,7 +217,7 @@ end_loop16:
 		if (imax > gmax) {
 			gmax = imax; te = i; // te is the end position on the target
 			for (j = 0; LIKELY(j < slen); ++j) // keep the H1 vector
-				MM_STORE_SI128(Hmax + j, MM_LOAD_SI128(H1 + j));
+				_mm_store_si128(Hmax + j, _mm_load_si128(H1 + j));
 			if (gmax + q->shift >= 255 || gmax >= endsc) break;
 		}
 		S = H1; H1 = H0; H0 = S; // swap H0 and H1
@@ -274,58 +251,71 @@ f_kswr_t f_ksw_i16(f_kswq_t *q, int tlen, const uint8_t *target, int _gapo, int 
         __m128i zero, gapoe, gape, *H0, *H1, *E, *Hmax;
 	f_kswr_t r;
 
+#if defined __SSE2__
 #define __max_8(ret, xx) do { \
-		(xx) = MM_MAX_EPI16((xx), MM_SRLI_SI128((xx), 8)); \
-		(xx) = MM_MAX_EPI16((xx), MM_SRLI_SI128((xx), 4)); \
-		(xx) = MM_MAX_EPI16((xx), MM_SRLI_SI128((xx), 2)); \
-    	(ret) = MM_EXTRACT_EPI16((xx), 0); \
+		(xx) = _mm_max_epi16((xx), _mm_srli_si128((xx), 8)); \
+		(xx) = _mm_max_epi16((xx), _mm_srli_si128((xx), 4)); \
+		(xx) = _mm_max_epi16((xx), _mm_srli_si128((xx), 2)); \
+    	(ret) = _mm_extract_epi16((xx), 0); \
 	} while (0)
+
+// Given entries all either 0x0000 or 0xffff, return whether they are all 0x0000
+#define allzero_0f_8(xx) (!_mm_movemask_epi8((xx)))
+
+#elif defined __ARM_NEON
+#define __max_8(ret, xx) (ret) = vmaxvq_s16(vreinterpretq_s16_u8((xx)))
+#define allzero_0f_8(xx) (vmaxvq_u16(vreinterpretq_u16_u8((xx))) == 0)
+
+#else
+#define __max_8(ret, xx) (ret) = m128i_max_s16((xx))
+#define allzero_0f_8(xx) (m128i_allzero((xx)))
+#endif
 
 	// initialization
 	r = f_g_defr;
 	minsc = (xtra&KSW_XSUBO)? xtra&0xffff : 0x10000;
 	endsc = (xtra&KSW_XSTOP)? xtra&0xffff : 0x10000;
 	m_b = n_b = 0; b = 0;
-	zero = MM_SET1_EPI32(0);
-	gapoe = MM_SET1_EPI16(_gapo + _gape);
-	gape = MM_SET1_EPI16(_gape);
+	zero = _mm_set1_epi32(0);
+	gapoe = _mm_set1_epi16(_gapo + _gape);
+	gape = _mm_set1_epi16(_gape);
 	H0 = q->H0; H1 = q->H1; E = q->E; Hmax = q->Hmax;
 	slen = q->slen;
 	for (i = 0; i < slen; ++i) {
-		MM_STORE_SI128(E + i, zero);
-		MM_STORE_SI128(H0 + i, zero);
-		MM_STORE_SI128(Hmax + i, zero);
+		_mm_store_si128(E + i, zero);
+		_mm_store_si128(H0 + i, zero);
+		_mm_store_si128(Hmax + i, zero);
 	}
 	// the core loop
 	for (i = 0; i < tlen; ++i) {
 		int j, k, imax;
 		__m128i e, h, f = zero, max = zero, *S = q->qp + target[i] * slen; // s is the 1st score vector
-		h = MM_LOAD_SI128(H0 + slen - 1); // h={2,5,8,11,14,17,-1,-1} in the above example
-		h = MM_SLLI_SI128(h, 2);
+		h = _mm_load_si128(H0 + slen - 1); // h={2,5,8,11,14,17,-1,-1} in the above example
+		h = _mm_slli_si128(h, 2);
 		for (j = 0; LIKELY(j < slen); ++j) {
-			h = MM_ADDS_EPI16(h, *S++);
-			e = MM_LOAD_SI128(E + j);
-			h = MM_MAX_EPI16(h, e);
-			h = MM_MAX_EPI16(h, f);
-			max = MM_MAX_EPI16(max, h);
-			MM_STORE_SI128(H1 + j, h);
-			h = MM_SUBS_EPU16(h, gapoe);
-			e = MM_SUBS_EPU16(e, gape);
-			e = MM_MAX_EPI16(e, h);
-			MM_STORE_SI128(E + j, e);
-			f = MM_SUBS_EPU16(f, gape);
-			f = MM_MAX_EPI16(f, h);
-			h = MM_LOAD_SI128(H0 + j);
+			h = _mm_adds_epi16(h, *S++);
+			e = _mm_load_si128(E + j);
+			h = _mm_max_epi16(h, e);
+			h = _mm_max_epi16(h, f);
+			max = _mm_max_epi16(max, h);
+			_mm_store_si128(H1 + j, h);
+			h = _mm_adds_epi16(h, gapoe);
+			e = _mm_adds_epi16(e, gape);
+			e = _mm_max_epi16(e, h);
+			_mm_store_si128(E + j, e);
+			f = _mm_adds_epi16(f, gape);
+			f = _mm_max_epi16(f, h);
+			h = _mm_load_si128(H0 + j);
 		}
 		for (k = 0; LIKELY(k < 16); ++k) {
-			f = MM_SLLI_SI128(f, 2);
+			f = _mm_slli_si128(f, 2);
 			for (j = 0; LIKELY(j < slen); ++j) {
-				h = MM_LOAD_SI128(H1 + j);
-				h = MM_MAX_EPI16(h, f);
-				MM_STORE_SI128(H1 + j, h);
-				h = MM_SUBS_EPU16(h, gapoe);
-				f = MM_SUBS_EPU16(f, gape);
-				if(UNLIKELY(!MM_MOVEMASK_EPI8(MM_CMPGT_EPI16(f, h)))) goto end_loop8;
+				h = _mm_load_si128(H1 + j);
+				h = _mm_max_epi16(h, f);
+				_mm_store_si128(H1 + j, h);
+				h = _mm_adds_epi16(h, gapoe);
+				f = _mm_adds_epi16(f, gape);
+				if(UNLIKELY(allzero_0f_8(_mm_cmpgt_epi16(f, h)))) goto end_loop8;
 			}
 		}
 end_loop8:
@@ -342,7 +332,7 @@ end_loop8:
 		if (imax > gmax) {
 			gmax = imax; te = i;
 			for (j = 0; LIKELY(j < slen); ++j)
-				MM_STORE_SI128(Hmax + j, MM_LOAD_SI128(H1 + j));
+				_mm_store_si128(Hmax + j, _mm_load_si128(H1 + j));
 			if (gmax >= endsc) break;
 		}
 		S = H1; H1 = H0; H0 = S;

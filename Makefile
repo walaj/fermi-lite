@@ -35,7 +35,7 @@ bseq.o: fml.h kseq.h
 bubble.o: mag.h kstring.h fml.h kvec.h f_ksw.h internal.h khash.h
 example.o: fml.h
 htab.o: htab.h kmer.h khash.h
-f_ksw.o: f_ksw.h
+f_ksw.o: f_ksw.h neon_sse.h scalar_sse.h 
 mag.o: mag.h kstring.h fml.h kvec.h internal.h kseq.h khash.h ksort.h
 misc.o: internal.h fml.h kstring.h rle.h mrope.h rope.h rld0.h mag.h kvec.h
 misc.o: htab.h kmer.h khash.h
