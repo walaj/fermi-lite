@@ -338,7 +338,7 @@ static int unitig1(aux_t *a, int64_t seed, kstring_t *s, kstring_t *cov, uint64_
 	if (contained) return -3; // contained
 	// check length, containment and if used before
 	if (s->l <= a->min_match) return -1; // too short
-	//int ret = fm6_is_contained(a->e, a->min_match, s, &intv0, &a->a[0]);
+	int ret = fm6_is_contained(a->e, a->min_match, s, &intv0, &a->a[0]);
 	*n_reads = 1;
 	// initialize the coverage string
 	if (cov->m < s->m) ks_resize(cov, s->m);

@@ -51,9 +51,9 @@ static int bfc_kmer_bufclear(cnt_step_t *cs, int forced, int tid)
 
 static void bfc_kmer_insert(cnt_step_t *cs, const bfc_kmer_t *x, int is_high, int tid)
 {
-  //int k = cs->k;
-	uint64_t y[2]; //, hash;
-	//hash = bfc_kmer_hash(k, x->x, y);
+        int k = cs->k;
+	uint64_t y[2], hash;
+	hash = bfc_kmer_hash(k, x->x, y);
 	if (bfc_ch_insert(cs->ch, y, is_high, 0) < 0) {
 		insbuf_t *p;
 		if (bfc_kmer_bufclear(cs, 0, tid) == CNT_BUF_SIZE)
