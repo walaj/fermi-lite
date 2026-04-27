@@ -12,6 +12,7 @@ typedef struct bfc_ch_s bfc_ch_t;
 
 bfc_ch_t *bfc_ch_init(int k, int l_pre);
 void bfc_ch_destroy(bfc_ch_t *ch);
+void bfc_ch_clear(bfc_ch_t *ch);
 int bfc_ch_insert(bfc_ch_t *ch, const uint64_t x[2], int is_high, int forced);
 int bfc_ch_get(const bfc_ch_t *ch, const uint64_t x[2]);
 uint64_t bfc_ch_count(const bfc_ch_t *ch);

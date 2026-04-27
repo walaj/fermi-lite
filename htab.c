@@ -42,6 +42,14 @@ void bfc_ch_destroy(bfc_ch_t *ch)
 	free(ch->h); free(ch);
 }
 
+void bfc_ch_clear(bfc_ch_t *ch)
+{
+	int i;
+	if (ch == 0) return;
+	for (i = 0; i < 1<<ch->l_pre; ++i)
+		kh_clear(cnt, ch->h[i]);
+}
+
 static inline cnthash_t *get_subhash(const bfc_ch_t *ch, const uint64_t x[2], uint64_t *key)
 {
 	if (ch->k <= 32) {

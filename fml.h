@@ -186,6 +186,20 @@ void fml_fmi_destroy(struct rld_t *e);
  */
 void fml_mag_destroy(struct mag_t *g);
 
+/**
+ * Count k-mers into a pre-allocated hash table (clear + recount).
+ * Avoids the 1M malloc/free cycle of bfc_ch_init/destroy per region.
+ *
+ * @param ch          existing bfc_ch_t (will be cleared, not freed)
+ * @param n           number of sequences
+ * @param seq         array of sequences
+ * @param k           k-mer size
+ * @param q           quality threshold
+ * @param n_threads   number of counting threads (1 = inline)
+ */
+struct bfc_ch_s;
+void fml_count_into(struct bfc_ch_s *ch, int n, const fseq1_t *seq, int k, int q, int n_threads);
+
 #ifdef __cplusplus
 }
 #endif

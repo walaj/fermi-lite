@@ -89,14 +89,30 @@ struct bfc_ch_s *fml_count(int n, const fseq1_t *seq, int k, int q, int l_pre, i
 	cnt_step_t cs;
 	cs.n_seqs = n, cs.seqs = seq, cs.k = k, cs.q = q;
 	cs.ch = bfc_ch_init(cs.k, l_pre);
-	cs.n_buf = calloc(n_threads, sizeof(int)); 
-	cs.buf = calloc(n_threads, sizeof(void*)); 
+	cs.n_buf = calloc(n_threads, sizeof(int));
+	cs.buf = calloc(n_threads, sizeof(void*));
 	for (i = 0; i < n_threads; ++i)
-	  cs.buf[i] = malloc(CNT_BUF_SIZE * sizeof(insbuf_t)); 
+	  cs.buf[i] = malloc(CNT_BUF_SIZE * sizeof(insbuf_t));
 	kt_for(n_threads, worker_count, &cs, cs.n_seqs);
 	for (i = 0; i < n_threads; ++i) free(cs.buf[i]);
 	free(cs.buf); free(cs.n_buf);
 	return cs.ch;
+}
+
+void fml_count_into(struct bfc_ch_s *ch, int n, const fseq1_t *seq, int k, int q, int n_threads)
+{
+	int i;
+	cnt_step_t cs;
+	bfc_ch_clear(ch);
+	cs.n_seqs = n, cs.seqs = seq, cs.k = k, cs.q = q;
+	cs.ch = ch;
+	cs.n_buf = calloc(n_threads, sizeof(int));
+	cs.buf = calloc(n_threads, sizeof(void*));
+	for (i = 0; i < n_threads; ++i)
+	  cs.buf[i] = malloc(CNT_BUF_SIZE * sizeof(insbuf_t));
+	kt_for(n_threads, worker_count, &cs, cs.n_seqs);
+	for (i = 0; i < n_threads; ++i) free(cs.buf[i]);
+	free(cs.buf); free(cs.n_buf);
 }
 
 
