@@ -542,6 +542,11 @@ float fml_correct_core(const fml_opt_t *opt, int flt_uniq, int n, fseq1_t *seq)
 	bfc_opt.k = flt_uniq? opt->min_asm_ovlp : opt->ec_k;
 	for (i = 0; i < n; ++i) tot_len += seq[i].l_seq; // compute total length
 	bfc_opt.l_pre = tot_len - 8 < 20? tot_len - 8 : 20;
+	/* Local assemblies do not need a million empty partitions. Through k=35
+	 * the original 20-bit split retains the full 2*k-bit key; bfc_ch_init
+	 * raises a smaller request to 2*k-BFC_CH_KEYBITS as needed (16 at k=33).
+	 * Above 35 the original hash folds bits, so retain its partition split. */
+	if (bfc_opt.k <= 35 && bfc_opt.l_pre > 12) bfc_opt.l_pre = 12;
 
 	memset(&es, 0, sizeof(ec_step_t));
 	es.opt = &bfc_opt, es.n_seqs = n, es.seqs = seq, es.flt_uniq = flt_uniq;
